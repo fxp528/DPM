@@ -1,35 +1,38 @@
-var cmd = require('./command.js');
+var cmd = require('./command.js'),
+	Slave = cmd.Slave,
+	BufferTofloat = cmd.BufferTofloat,
+	CrcCheck = cmd.CrcCheck,
+	DataObj = cmd.DataObj;
 var SerialPort = require('serialport');
 var port = new SerialPort(process.argv[2]);
 var interval = 1000;
-var stack = [	
-	{type: "voltageAvg", fn: cmd.readVoltageAvg(Buffer.from([0x01]))},
-	{type: "currentAvg", fn: cmd.readCurrentAvg(Buffer.from([0x01]))},
-	{type: "powerFactor", fn: cmd.readPowerFactor(Buffer.from([0x01]))},
-	{type: "powerTotal", fn: cmd.readPowerTotal(Buffer.from([0x01]))}
-];
-var state;
-port.on('open', function() {
-	setInterval(function() {
-		stack.forEach(function(s, i){
+var slaves = [ new Slave(0x01) ];
+
+function init(){
+	slaves.forEach(function(s, i){
+		setTimeout(function(){
+			port.write(s.Write);
+		}, interval / slaves.length * i);
+	});
+}
+function loop(){
+	setInterval(function(){
+		slaves.forEach(function(s, i){
 			setTimeout(function(){
-				port.write(s.fn, function(){
-					port.drain(function(){
-						state = s.type;
-					});
-				});
-			}, interval / stack.length * i);
+				port.write(s.Read);
+			}, interval / slaves.length * i);
 		});
 	}, interval);
+}
+port.on('open', function(){
+	init();
+	loop();
 });
-
-port.on('data', function(data) {
-	if(cmd.crcCheck(data)){
-		if(data.length>8){
-			var buf = data.slice(3, 7).swap32().swap16();
-			console.log(new Date().toGMTString(), state, cmd.bufferTofloat(buf));
-		}else{
-			console.log(data);
-		}
+port.on('data', function(data){
+	if(CrcCheck(data)&& data[1] == 0x03){
+		console.log(new DataObj(data));
 	}
+});
+port.on('error', function(err){
+	console.log(err);
 });
