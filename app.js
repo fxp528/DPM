@@ -3,8 +3,8 @@ var cmd = require('./command.js'),
 	BufferTofloat = cmd.BufferTofloat,
 	CrcCheck = cmd.CrcCheck,
 	DataObj = cmd.DataObj;
-var SerialPort = require('serialport');
-var port = new SerialPort(process.argv[2]);
+var { SerialPort } = require('serialport');
+var port = new SerialPort({ path: process.argv[2], baudRate: +process.argv[3] });
 var interval = 1000;
 var slaves = [ new Slave(0x01) ];
 
